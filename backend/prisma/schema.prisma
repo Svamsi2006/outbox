@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String     @id @default(cuid())
+  email           String     @unique
+  name            String?
+  avatar          String?
+  slackWebhookUrl String?
+  slackConnected  Boolean    @default(false)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  jobs            EmailJob[]
+}
+
+model Sender {
+  id               String     @id @default(cuid())
+  name             String
+  email            String     @unique
+  host             String     @default("smtp.ethereal.email")
+  port             Int        @default(587)
+  user             String?
+  pass             String?
+  hourlyLimit      Int        @default(100)
+  minDelaySeconds  Int        @default(2)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  jobs             EmailJob[]
+}
+
+model EmailJob {
+  id                 String    @id @default(cuid())
+  idempotencyKey     String    @unique
+  userId             String?
+  user               User?     @relation(fields: [userId], references: [id])
+  senderId           String
+  sender             Sender    @relation(fields: [senderId], references: [id])
+  recipientEmail     String
+  subject            String
+  body               String
+  scheduledAt        DateTime
+  sentAt             DateTime?
+  status             String    @default("PENDING") // PENDING, QUEUED, SENT, FAILED, RATE_LIMITED
+  errorMessage       String?
+  etherealMessageId  String?
+  etherealPreviewUrl String?
+  retryCount         Int       @default(0)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([scheduledAt, status])
+  @@index([recipientEmail])
+  @@index([senderId, scheduledAt])
+}
